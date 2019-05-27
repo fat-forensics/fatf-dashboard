@@ -28,7 +28,8 @@ def group_by_column(
         dataset: np.ndarray,
         column_index: Index,
         groupings: Optional[List[Union[Number, Tuple[str]]]] = None,
-        numerical_bins_number: int = 5) -> Tuple[List[List[int]], List[str]]:
+        numerical_bins_number: int = 5,
+        treat_as_categorical: Optional[bool] = None) -> Tuple[List[List[int]], List[str]]:
     """
     Groups row indices of an array based on value grouping of a chosen column.
 
@@ -68,6 +69,7 @@ def group_by_column(
         previous boundary if one is given.
     numerical_bins_number : integer, optional (default=5)
         The number of bins used for default binning of numerical columns.
+    treat_as_categorical : TODO
 
     Warns
     -----
@@ -106,7 +108,7 @@ def group_by_column(
         A list of lists with the latter one holding row indices of a particular
         group.
     bin_names : List[string]
-        A list of lists with the latter one holding a group description.
+        A list holding a description of each group.
     """
     # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     if not fuav.is_2d_array(dataset):
@@ -146,7 +148,14 @@ def group_by_column(
     indices_per_bin = []
     bin_names = []
 
-    if fuav.is_numerical_array(column):
+    is_numerical_array = fuav.is_numerical_array(column)
+    is_categorical_array = fuav.is_textual_array(column)
+
+    if is_numerical_array and treat_as_categorical:
+        is_numerical_array = False
+        is_categorical_array = True
+
+    if is_numerical_array:
         if groupings is None:
             # Get default bins
             bins = np.linspace(
@@ -209,7 +218,7 @@ def group_by_column(
 
         assert not indices_seen_so_far.intersection(indices), 'Duplicates.'
         indices_seen_so_far = indices_seen_so_far.union(indices)
-    elif fuav.is_textual_array(column):
+    elif is_categorical_array:
         unique_elements = np.sort(np.unique(column)).tolist()
 
         if groupings is None:

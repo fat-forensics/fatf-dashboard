@@ -13,10 +13,13 @@ indices = (list(range(0, 100)) +
            list(range(5100, 5200)) +
            list(range(7100, 7200)))
 
-data = np.load('./adult_data/adult_num.pkl.npy')
-data = data[indices, :]
-ground_truth = np.load('./adult_data/adult_num_gt.pkl.npy')
-ground_truth = ground_truth[indices]
+original_data = np.load('./adult_data/adult_num.pkl.npy')
+original_ground_truth = np.load('./adult_data/adult_num_gt.pkl.npy')
+original_predictions = clf.predict(original_data)
+
+data = original_data[indices, :]
+ground_truth = original_ground_truth[indices]
+predictions = original_predictions[indices]
 
 
 # 222                                                    0: sex
@@ -377,6 +380,7 @@ def predict(*args):
 
 import fatf.fairness.data.measures as ffdm
 
+# Unfair data rows
 def f_d_bias(feature_idx_list):
     data_fairness_mx = ffdm.systemic_bias(data, ground_truth, feature_idx_list)
     true_tuples = np.where(data_fairness_mx == True)
@@ -414,3 +418,70 @@ def f_d_bias(feature_idx_list):
         ))
 
     return render_pairs
+
+import fatf.utils.data.tools as fudt
+
+# Sample size disparity
+def f_d_sample(feature_idx_list):
+    unique_gt = np.unique(original_ground_truth)
+    html_struct = []
+
+    for idx in feature_idx_list:
+        feature_name = census_names[idx]
+
+        # Sort out categorical
+        if feature_name in map_i_s:
+            # is cat
+            unique = np.unique(original_data[:, idx])
+            splits = [(i, ) for i in unique]
+        else:
+            splits = None
+
+        html_struct.append(html.H4(
+            children='Distribution for feature: {}'.format(feature_name),
+            style={'textAlign': 'center', 'color': '#000000'})
+        )
+
+        indices_per_bin, bin_names = fudt.group_by_column(original_data, idx, groupings=splits, treat_as_categorical=True)
+        counts = [len(i) for i in indices_per_bin]
+
+        if splits is None:
+            names = ['{}'.format(i) for i in bin_names]
+        else:
+            names = [map_i_s[feature_name][i[0]] for i in splits]
+
+        html_struct.append(dcc.Graph(
+            id='f-d-counts-{}'.format(feature_name),
+            figure={
+                'data': [
+                    {'x': names, 'y': counts, 'type': 'bar', 'name': feature_name}
+                ],
+                'layout': {
+                    'title': 'Counts per split',
+                    'font': {'color': '#000000'}
+                }
+            })
+                           )
+
+        ###
+        gt_counts = [[] for i in range(unique_gt.shape[0])]
+        for indices_set in indices_per_bin:
+            gt_filtered = original_ground_truth[indices_set]
+            for i, v in enumerate(unique_gt):
+                cnt = (gt_filtered == v).sum()
+                gt_counts[i].append(cnt)
+        gt_names = [map_i_s['income'][i] for i in unique_gt]
+
+        html_struct.append(dcc.Graph(
+            id='f-d-ground-truth-{}'.format(feature_name),
+            figure={
+                'data': [{'x': names, 'y': count, 'type': 'bar', 'name': name}
+                         for count, name in zip(gt_counts, gt_names)],
+                'layout': {
+                    'title': 'Label per split',
+                    'font': {'color': '#000000'}
+                }
+            })
+                           )
+
+    return html_struct

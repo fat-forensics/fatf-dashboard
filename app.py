@@ -10,7 +10,7 @@ from dash.dependencies import Input, Output, State
 from components import (generate_table, datapoint_selection, census_names,
                         random_point, datapoint_vis, predict,
                         #
-                        f_d_bias)
+                        f_d_bias, f_d_sample)
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -246,14 +246,6 @@ fairness_data = [
         }
     ),
 
-    html.Div(
-        children=dcc.Markdown(children=(
-            'The collection of tables below will show pair of data points that '
-            'differ in both protected features and label, i.e. unfair rows in '
-            'the training data set.')),
-        style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
-    ),
-
     dcc.Dropdown(
         id='f-d-protected',
         options=[{'label': v, 'value': i} for i, v in enumerate(census_names[:-1])],
@@ -263,6 +255,14 @@ fairness_data = [
     ),
 
     html.Button('Submit', id='f-d-submit_button', n_clicks=0),
+
+    html.Div(
+        children=dcc.Markdown(children=(
+            'The collection of tables below will show pair of data points that '
+            'differ in both protected features and label, i.e. unfair rows in '
+            'the training data set.')),
+        style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+    ),
 
     html.Div(
         id='f-d-out',
@@ -288,7 +288,8 @@ def f_d_protected(n_clicks, protected_list):
             )
         else:
             vld = f_d_bias(protected_list)
-            return vld
+            fgs = f_d_sample(protected_list)
+            return vld + fgs
 ##
 fairness_models = [
     'Fairness/Models is under construction.',
@@ -297,8 +298,8 @@ fairness_models = [
         id='example-graph',
         figure={
             'data': [
-                {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'SF'},
-                {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': u'Montréal'},
+                {'x': ['a', 'b', 'c'], 'y': [4, 1, 2], 'type': 'bar', 'name': 'SF'},
+                {'x': ['a', 'b', 'c'], 'y': [2, 4, 5], 'type': 'bar', 'name': u'Montréal'},
             ],
             'layout': {
                 'title': 'Dash Data Visualization',
