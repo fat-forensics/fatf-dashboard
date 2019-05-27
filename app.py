@@ -335,7 +335,7 @@ fairness_models = [
 
     html.Div(
         children=dcc.Markdown(children=(
-            'TODO')),
+            'The heatmaps show selected disparate impact metric for each pair of possible values for the selected protected feature.\n\n**0** (blue) indicates no disparate impact. **1** (red) indicates disparate impact.')),
         style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
     ),
 
@@ -419,11 +419,6 @@ def f_p_protected(n_clicks, protected_list):
             )
         else:
             return f_p_cf(protected_list, DATAPOINT)
-
-
-
-
-
 
 
 #

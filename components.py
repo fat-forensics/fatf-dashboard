@@ -508,33 +508,92 @@ def f_d_sample(feature_idx_list):
 
 #######
 
-group_fairness_metrics = {'Disparate Impact': 'disparate_impact',
-                          'Demographic Parity': 'demographic_parity',
-                          'Equal Opportunity': 'equal_opportunity',
-                          'Equal Accuracy': 'equal_accuracy'}
+import fatf.fairness.models.measures as ffmm
+
+group_fairness_metrics = {'Demographic Parity': 'demographic parity',
+                          'Equal Opportunity': 'equal opportunity',
+                          'Equal Accuracy': 'equal accuracy'}
+
+
+
+
 def f_m_metrics(features_list, metrics_list):
-    return [dcc.Graph(
-        id='heatmap',
-        figure={
-            'data': [{
-                'z': [
-                    [1, 2, 3],
-                    [4, 5, 6]
-                ],
-                'x': ['x', 'y', 'z'],
-                'y': ['x', 'y', 'z'],
-                'text': [
-                    ['a', 'b', 'c'],
-                    ['d', 'e', 'f']
-                ],
-                'customdata': [
-                    ['c-a', 'c-b', 'c-c'],
-                    ['c-d', 'c-e', 'c-f'],
-                ],
-                'type': 'heatmap'
-            }]
-        }
-    )]
+    html_struct = []
+    for f in features_list:
+        feature_name = census_names[f]
+
+        # Sort out categorical
+        if feature_name in map_i_s:
+            # is cat
+            splits = [(i, ) for i in np.unique(original_data[:, f])]
+            treat_as_categorical = True
+        else:
+            splits = None
+            treat_as_categorical = None
+
+        indices_per_bin, bin_names = fudt.group_by_column(original_data, f, groupings=splits, treat_as_categorical=treat_as_categorical)
+
+        if splits is None:
+            names = ['{}'.format(i) for i in bin_names]
+        else:
+            names = [map_i_s[feature_name][i[0]] for i in splits]
+
+        for m in metrics_list:
+            dimp = ffmm.disparate_impact_indexed(
+                    indices_per_bin,
+                    original_ground_truth,
+                    original_predictions,
+                    labels=[0, 1],
+                    tolerance=0.2,
+                    criterion=m)
+            dimp_list = dimp.astype(int).tolist()
+
+            html_struct.append(html.H4(
+                children='Disparate Impact -- {} -- for feature: {}'.format(m, feature_name),
+                style={'textAlign': 'center', 'color': '#000000'})
+            )
+            html_struct.append(html.Div(
+                children=dcc.Graph(
+                    id='f-m-heatmap-{}-{}'.format(f, m.replace(' ', '-')),
+                    figure={
+                        'data': [{
+                            'z': dimp_list[::-1],
+                            'x': names,
+                            'y': names[::-1],
+                            'autocolorscale': False,
+                            'zmin': 0,
+                            'zmax': 1,
+                            'zauto': False,
+                            # 'colorscale': [[0, 'rgb(0,0,255)'], [1, 'rgb(255,0,0)']],
+#                        'text': [
+#                            ['a', 'b', 'c'],
+#                            ['d', 'e', 'f']
+#                        ],
+#                        'customdata': [
+#                            ['c-a', 'c-b', 'c-c'],
+#                            ['c-d', 'c-e', 'c-f'],
+#                        ],
+                            'type': 'heatmap'
+                        }],
+                        'layout': {
+                            # 'autosize': False,
+                            'width': 700,
+                            'height': 700
+
+#                    'title': 'Dash Data Visualization',
+#                    'font': {
+#                        'color': colors['text']
+#                    }
+                        }
+                    }
+                ),
+                style={'width': '710px', 'textAlign': 'center', 'margin': 'auto'}
+            ))
+
+
+
+
+    return html_struct
 
 import fatf.fairness.predictions.measures as ffpm
 import fatf.transparency.predictions.counterfactuals as ftpc
