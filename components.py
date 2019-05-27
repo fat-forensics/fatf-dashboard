@@ -252,6 +252,23 @@ census_names = [
     'income'
 ]
 
+dtype = [
+    ('age', int),
+    ('workclass', 'U20'),
+    ('fnlwgt', int),
+    ('education', 'U20'),
+    ('education-num', int),
+    ('marital-status', 'U20'),
+    ('occupation', 'U20'),
+    ('relationship', 'U20'),
+    ('race', 'U20'),
+    ('sex', 'U20'),
+    ('capital-gain', int),
+    ('capital-loss', int),
+    ('hours-per-week', int),
+    ('native-country', 'U20')
+]
+
 # Column indices of maps
 map_indices = dict()
 for feature_name in map_s_i:
@@ -434,15 +451,18 @@ def f_d_sample(feature_idx_list):
             # is cat
             unique = np.unique(original_data[:, idx])
             splits = [(i, ) for i in unique]
+            treat_as_categorical = True
         else:
             splits = None
+            treat_as_categorical = None
 
         html_struct.append(html.H4(
             children='Distribution for feature: {}'.format(feature_name),
             style={'textAlign': 'center', 'color': '#000000'})
         )
 
-        indices_per_bin, bin_names = fudt.group_by_column(original_data, idx, groupings=splits, treat_as_categorical=True)
+
+        indices_per_bin, bin_names = fudt.group_by_column(original_data, idx, groupings=splits, treat_as_categorical=treat_as_categorical)
         counts = [len(i) for i in indices_per_bin]
 
         if splits is None:
@@ -485,3 +505,95 @@ def f_d_sample(feature_idx_list):
                            )
 
     return html_struct
+
+#######
+
+group_fairness_metrics = {'Disparate Impact': 'disparate_impact',
+                          'Demographic Parity': 'demographic_parity',
+                          'Equal Opportunity': 'equal_opportunity',
+                          'Equal Accuracy': 'equal_accuracy'}
+def f_m_metrics(features_list, metrics_list):
+    return [dcc.Graph(
+        id='heatmap',
+        figure={
+            'data': [{
+                'z': [
+                    [1, 2, 3],
+                    [4, 5, 6]
+                ],
+                'x': ['x', 'y', 'z'],
+                'y': ['x', 'y', 'z'],
+                'text': [
+                    ['a', 'b', 'c'],
+                    ['d', 'e', 'f']
+                ],
+                'customdata': [
+                    ['c-a', 'c-b', 'c-c'],
+                    ['c-d', 'c-e', 'c-f'],
+                ],
+                'type': 'heatmap'
+            }]
+        }
+    )]
+
+import fatf.fairness.predictions.measures as ffpm
+import fatf.transparency.predictions.counterfactuals as ftpc
+
+def f_p_cf(protected_list, datapoint):
+    dp = np.array(list(datapoint))
+    dpc = clf.predict(dp.reshape(1, -1))[0]
+    cidx = [census_names.index(i) for i in map_s_i]
+    cidx.remove(14)
+
+
+    cf, dist, pred = ffpm.counterfactual_fairness(
+        instance=dp,
+        protected_feature_indices=protected_list,
+        model=clf,
+        categorical_indices=cidx,
+        default_numerical_step_size=10,
+        dataset=original_data)
+
+    if cf.size:
+        struct_dpc = map_i_s['income'][dpc]
+
+        new_dp = []
+        for i, v in enumerate(datapoint):
+            feature_name = census_names[i]
+            if feature_name in map_i_s:
+                new_dp.append(map_i_s[feature_name][v])
+            else:
+                new_dp.append(v)
+        struct_dp = np.array([tuple(new_dp)], dtype=dtype)[0]
+
+        struct_pred = np.array([map_i_s['income'][i] for i in pred])
+
+        struct_cf = []
+        for row in cf:
+            new_dp = []
+            for i, v in enumerate(row):
+                feature_name = census_names[i]
+                if feature_name in map_i_s:
+                    new_dp.append(map_i_s[feature_name][v])
+                else:
+                    new_dp.append(v)
+            struct_cf.append(tuple(new_dp))
+        struct_cf = np.array(struct_cf, dtype=dtype)
+
+        ss = ftpc.textualise_counterfactuals(
+            struct_dp, struct_cf,
+            instance_class=struct_dpc,
+            counterfactuals_distances=dist,
+            counterfactuals_predictions=struct_pred)
+        idd = ss.find('Counterfactual instance') - 0#23
+        ss = html.Div(
+            children=dcc.Markdown(children='```\n{}\n```'.format(ss[idd:])),
+                style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+            )
+    else:
+        ss = html.Div(
+                children=dcc.Markdown(children='**No counterfactual instances were found.**'),
+                style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+            )
+
+    return ss

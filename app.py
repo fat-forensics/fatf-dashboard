@@ -10,7 +10,7 @@ from dash.dependencies import Input, Output, State
 from components import (generate_table, datapoint_selection, census_names,
                         random_point, datapoint_vis, predict,
                         #
-                        f_d_bias, f_d_sample)
+                        f_d_bias, f_d_sample, group_fairness_metrics, f_m_metrics, f_p_cf)
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -18,6 +18,8 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.config['suppress_callback_exceptions']=True
 # app.config.suppress_callback_exceptions = True
 server = app.server
+
+DATAPOINT = None
 
 colors = {
     'background': '#111111',
@@ -168,6 +170,7 @@ def update_graph(
     # age, workclass, fnlwgt, education, education_num, marital_status,
     # occupation, relationship, race, sex, capital_gain, capital_loss,
     # hours_per_week, native_country):
+    global DATAPOINT
     if n_clicks < 1:
         prediction = 'Please declare the data point to get the prediction.'
         dpv = ''
@@ -181,11 +184,13 @@ def update_graph(
                 break
 
         if is_complete:
+            DATAPOINT = args
             prediction = predict(*args)
             dpv = datapoint_vis(*args)
         else:
             prediction = 'The data point is ill-specified. Cannot predict. Incorrect \_\_{}\_\_ feature. ({})'.format(feature_name, n_clicks)
             dpv = ''
+            DATAPOINT = None
 
     prediction_vis = html.Div(
         children=dcc.Markdown(children='###### Prediction: ######\n**{}**'.format(prediction)),
@@ -239,7 +244,7 @@ def render_content(fat_tab, dmp_tab):
 
 fairness_data = [
     html.H4(
-        children='Please select protected attributes:',
+        children='Please select protected attributes (e.g., *sex* and/or *race*):',
         style={
             'textAlign': 'center',
             'color': colors['black']
@@ -260,7 +265,9 @@ fairness_data = [
         children=dcc.Markdown(children=(
             'The collection of tables below will show pair of data points that '
             'differ in both protected features and label, i.e. unfair rows in '
-            'the training data set.')),
+            'the training data set. The bar plots will show the number of instances '
+            'for each unique value of the protected feature and the label distribution '
+            'therein.')),
         style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
     ),
 
@@ -277,7 +284,7 @@ fairness_data = [
 def f_d_protected(n_clicks, protected_list):
     if n_clicks < 1:
         return html.Div(
-            children=dcc.Markdown(children='**Please select protected features to see the results.**'),
+            children=dcc.Markdown(children='**Please select protected features to see the results.** (E.g., *sex* and/or *race*.)'),
             style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
         )
     else:
@@ -292,7 +299,136 @@ def f_d_protected(n_clicks, protected_list):
             return vld + fgs
 ##
 fairness_models = [
-    'Fairness/Models is under construction.',
+    html.H4(
+        children='Please select protected attributes:',
+        style={
+            'textAlign': 'center',
+            'color': colors['black']
+        }
+    ),
+
+    dcc.Dropdown(
+        id='f-m-protected',
+        options=[{'label': v, 'value': i} for i, v in enumerate(census_names[:-1])],
+        value='',
+        placeholder='Select protected attributes...',
+        multi=True
+    ),
+
+    html.H4(
+        children='Please select metrics:',
+        style={
+            'textAlign': 'center',
+            'color': colors['black']
+        }
+    ),
+
+    dcc.Dropdown(
+        id='f-m-metrics',
+        options=[{'label': d, 'value': v} for d, v in group_fairness_metrics.items()],
+        value='',
+        placeholder='Select protected attributes...',
+        multi=True
+    ),
+
+    html.Button('Submit', id='f-m-submit_button', n_clicks=0),
+
+    html.Div(
+        children=dcc.Markdown(children=(
+            'TODO')),
+        style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+    ),
+
+    html.Div(
+        id='f-m-out',
+        children=['Fairness/Models is under construction.']
+    )
+]
+@app.callback(
+    Output('f-m-out', 'children'),
+    [Input('f-m-submit_button', 'n_clicks')],
+    [State('f-m-protected', 'value'), State('f-m-metrics', 'value')]
+)
+def f_m_protected(n_clicks, protected_list, metrics_list):
+    if n_clicks < 1:
+        return html.Div(
+            children=dcc.Markdown(children='**Please select protected features to see the results.** (E.g., *sex* and/or *race*.)'),
+            style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+        )
+    else:
+        if not protected_list or not metrics_list or protected_list is None or metrics_list is None:
+            return html.Div(
+                children=dcc.Markdown(children='**No protected features or metrics were selected.**'),
+                style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+            )
+        else:
+            return f_m_metrics(protected_list, metrics_list)
+##
+fairness_predictions = [
+
+    html.H4(
+        children='Please select protected attributes:',
+        style={
+            'textAlign': 'center',
+            'color': colors['black']
+        }
+    ),
+
+    dcc.Dropdown(
+        id='f-p-protected',
+        options=[{'label': v, 'value': i} for i, v in enumerate(census_names[:-1])],
+        value='',
+        placeholder='Select protected attributes...',
+        multi=True
+    ),
+
+    html.Button('Submit', id='f-p-submit_button', n_clicks=0),
+
+    html.Div(
+        children=dcc.Markdown(children=(
+            'Counterfactual fairness:')),
+        style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+    ),
+
+    html.Div(
+        id='f-p-out',
+        children=['Fairness/Models is under construction.']
+    )
+]
+@app.callback(
+    Output('f-p-out', 'children'),
+    [Input('f-p-submit_button', 'n_clicks')],
+    [State('f-p-protected', 'value')]
+)
+def f_p_protected(n_clicks, protected_list):
+    if n_clicks < 1:
+        return html.Div(
+            children=dcc.Markdown(children='**Please select protected features to see the results.** (E.g., *sex* and/or *race*.)'),
+            style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+        )
+    else:
+        if DATAPOINT is None:
+            return html.Div(
+                children=dcc.Markdown(children='**A data point was not submitted.**'),
+                style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+            )
+        elif not protected_list or protected_list is None:
+            return html.Div(
+                children=dcc.Markdown(children='**No protected features were selected.**'),
+                style={'width': '80%', 'textAlign': 'center', 'margin': 'auto'}
+            )
+        else:
+            return f_p_cf(protected_list, DATAPOINT)
+
+
+
+
+
+
+
+#
+accountability_data = [
+    'Accountability/Data is under construction.',
 
     dcc.Graph(
         id='example-graph',
@@ -312,9 +448,6 @@ fairness_models = [
         }
     )
 ]
-fairness_predictions = 'Fairness/Predictions is under construction.'
-#
-accountability_data = 'Accountability/Data is under construction.'
 accountability_models= 'Accountability/Models is under construction.'
 accountability_predictions = 'Accountability/Predictions is under construction.'
 #
