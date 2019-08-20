@@ -53,7 +53,7 @@ app.layout = html.Div(
         ),
 
         html.H4(
-            children='Kacper Sokol, et al.',
+            children='Author List Anonymised',
             style={
                 'textAlign': 'center',
                 'color': colors['green']
@@ -61,7 +61,7 @@ app.layout = html.Div(
         ),
 
         html.H4(
-            children='(KDD 2019 XAI Reviewer Preview)',
+            children='(FAT* 2020 Reviewer Preview)',
             style={
                 'textAlign': 'center',
                 'color': colors['black']
