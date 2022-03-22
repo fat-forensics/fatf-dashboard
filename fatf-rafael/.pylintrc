@@ -1,8 +1,0 @@
-[pylint]
-# Errors or warning code-names to be ignored (separated with ,)
-disable = locally-disabled
-
-# 0 is auto-detect
-jobs = 0
-
-max-line-length = 79

@@ -1,4 +1,13 @@
+# MacOS
+*.DS_Store
+
+# Python
 *.pyc
-.DS_Store
-__pycache__
-.ipynb_checkpoints
+*__pycache__
+*.ipynb_checkpoints
+
+# Data
+_data_model/adult.data*
+_data_model/adult.names*
+_data_model/adult.test*
+_data_model/old.adult.names*
