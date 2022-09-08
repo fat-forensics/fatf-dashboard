@@ -64,8 +64,8 @@ app.layout = html.Div(
         html.H3(
             children=[
                 '(',
-                html.A(children='arXiv:1909.05167',
-                       href='https://arxiv.org/abs/1909.05167'),
+                html.A(children='Software Impacts',
+                       href='https://www.sciencedirect.com/science/article/pii/S2665963822000951'),
                  ')'],
             style={
                 'textAlign': 'center',
